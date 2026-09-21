@@ -19,7 +19,7 @@ The purpose of this system is to implement a simplified connected device environ
                     │   Management Server    │
                     │                        │
                     │ TCP Command Server     │
-                    │ MQTT Subscriber        │
+                    │ MQTT Client            │
                     │ OTA Package Server     │
                     └────────────────────────┘
                             │        │
@@ -32,7 +32,7 @@ The purpose of this system is to implement a simplified connected device environ
                     │      C++ / Linux      │
                     │                       │
                     │ TCP Command Client    │
-                    │ MQTT Publisher        │
+                    │ MQTT Client           │
                     │ OTA Manager           │
                     └───────────────────────┘
                                │
