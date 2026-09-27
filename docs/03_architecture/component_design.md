@@ -285,7 +285,6 @@ It consists of the following components:
 ## Component Interaction Diagram
 
 ```mermaid
-```
 flowchart LR
 
     %% =====================================================
@@ -392,7 +391,4 @@ flowchart LR
 
     D_HTTP <--> HTTP
     HTTP <--> P
-```
-
-
 ```
