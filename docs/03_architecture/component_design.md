@@ -380,15 +380,15 @@ flowchart LR
     %% =====================================================
     %% System-Level Connections
     %% =====================================================
-    D_MQTT <--> MQTT_D
-    MQTT_D <--> B
+    D_MQTT <-.-> MQTT_D
+    MQTT_D <-.-> B
 
-    B <--> MQTT_S
-    MQTT_S <--> S_MQTT
+    B <-.-> MQTT_S
+    MQTT_S <-.-> S_MQTT
 
-    D_TCP <--> TCP
-    TCP <--> S_TCP
+    D_TCP <-.-> TCP
+    TCP <-.-> S_TCP
 
-    D_HTTP <--> HTTP
-    HTTP <--> P
+    D_HTTP <-.-> HTTP
+    HTTP <-.-> P
 ```
