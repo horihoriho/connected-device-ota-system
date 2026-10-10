@@ -173,17 +173,81 @@ The connected device and the management server shall reconnect to the MQTT broke
 
 The reconnection process is defined as follows:
 
-1. The MQTT client tries to reconnect to the MQTT broker once
-2. If reconnection fails, the MQTT client retries after configured interval based on an exponential backoff strategy
-3. After reconnection succeeds, the MQTT client reset the retry interval to initial value
+1. The MQTT client tries to reconnect to the MQTT broker
+2. If reconnection fails, the MQTT client retries after a configured interval based on an exponential backoff strategy
+3. After reconnection succeeds, the MQTT client resets the retry interval to initial value
 
-The ecponential backoff strategy is adopt to reduce resource consumption.
+The exponential backoff strategy is adapted to reduce resource consumption.
 
 #### 4.5.4 Message Retransmission
 
+The connected device and the management server shall resend messages to the MQTT broker when 
+
+The message retransmissions process is defined as follows:
+
+1. The MQTT client sends a PUBLISH packet to the MQTT broker
+2. The MQTT broker responses a PUBACK packet to the MQTT broker
+3. If MQTT client does not receive the PUBACK packet, an unacknowledged message is handled according to the MQTT client library and session configuration
+
+
+#### 4.5.5 Session Management
+
+The connected device and the management server shall adapt a non-persistent session.
+
+The session management is defined as follows:
+
+1. The MQTT client establishes a new session when connecting to the MQTT broker
+2. The MQTT broker does not retain the client session after disconnection
+3. The MQTT client re-subscribes after reconnection
+
+The non-persistent session is adopted through this project because the system prioritizes the latest status rather than historical messages.
+
+Retransmission of unacknowledged messages QoS1 is not guaranteed with non-persistent session.
 
 
 ### 4.6 Monitoring Communication Flow
+
+#### 4.6.1 Periodic Monitoring
+
+**Overview**
+Periodic monitoring is initiated by the connected device with a configured interval.
+
+The communication flow is defined as follows:
+
+1. The connected device publishes the latest device status with `/{device_id}/status`
+2. The MQTT broker forwards the message to the management server
+3. The management server receives the device status
+
+QoS1 is used for message delivery
+
+The connected device shall not retain historical status messages
+
+**Sequence Diagram**
+```mermeid
+
+sequenceDiagram
+    participant D as Connected Device
+    participant B as MQTT Broker
+    participant S as Management Server
+
+    Note over D,B: MQTT Connection Established
+    Note over B,S: MQTT Connection Established
+
+    loop Every Monitoring Interval
+        Note over D: Collect latest status
+
+        D->>B: PUBLISH Device Status (QoS 1)
+        B-->>D: PUBACK
+
+        B->>S: PUBLISH Device Status (QoS 1)
+        S-->>B: PUBACK
+    end
+```
+
+
+
+#### 4.6.2 On-demand Monitoring
+
 
 
 
