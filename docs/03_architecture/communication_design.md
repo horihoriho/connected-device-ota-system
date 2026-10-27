@@ -19,11 +19,13 @@ The publish/subscribe model allows multiple connected devices to communicate mon
 This model is suitable for asynchronous monitoring communication.
 
 **TCP**
+
 TCP is used for remote control and OTA control between the connected device and the management server.
 The bidirectional communication allows the connected device to communicate directly and reliably with the management server. 
 A TCP connection is suitable for exchanging control requests and their corresponding results between the two.
 
 **HTTP**
+
 HTTP is used for downloading OTA packages from the OTA package server.
 The OTA package can contain large data compared with others. HTTP provides a standard request/response protocol for transferring files and allows the connected device to download OTA packages directly form the OTA package server.
 
@@ -56,18 +58,24 @@ MQTT is used for exchanging remote monitoring messages, including periodic devic
 
 ### 4.3 Message Design
 
+This section describes message design which is both device status and device status request.
+
 #### 4.3.1 Device Status
 
 **Purpose**
+
 To report the latest device status for both periodic and on-demand remote monitoring
 
 **Topic**
+
 `device/{device_id}/status`
 
 **Payload Format**
+
 JSON (UTF-8)
 
 **Payload Definition**
+
 The device status message contains device identification, device health, and metadata information. 
 All status should be sent if some fields are unavailable. 
 
@@ -85,6 +93,7 @@ All status should be sent if some fields are unavailable.
 | `metadata.timestamp` | string | RFC3339 | - | `null` | `null` | timestamp when the device correct the device status |
 
 **Example**
+
 ```Json
 {
   "device_identification": {
@@ -109,15 +118,19 @@ All status should be sent if some fields are unavailable.
 #### 4.3.2 Device Status Request
 
 **Purpose**
+
 To request the latest device status for on-demand remote monitoring
 
 **Topic**
+
 `device/{device_id}/status/request`
 
 **Payload Format**
+
 None (zero-length payload)
 
 **Notes**
+
 In general, request messages should contain request id to check the correlation between request and response.
 Request/Response correlation is not supported based on the project scope.
 
@@ -202,7 +215,7 @@ The session management is defined as follows:
 
 The non-persistent session is adopted through this project because the system prioritizes the latest status rather than historical messages.
 
-Retransmission of unacknowledged messages QoS1 is not guaranteed with non-persistent session.
+Retransmission of unacknowledged messages QoS 1 is not guaranteed with non-persistent session.
 
 
 ### 4.6 Monitoring Communication Flow
@@ -210,21 +223,22 @@ Retransmission of unacknowledged messages QoS1 is not guaranteed with non-persis
 #### 4.6.1 Periodic Monitoring
 
 **Overview**
+
 Periodic monitoring is initiated by the connected device with a configured interval.
 
 The communication flow is defined as follows:
 
-1. The connected device publishes the latest device status with `/{device_id}/status`
+1. The connected device publishes the latest device status to `device/{device_id}/status`
 2. The MQTT broker forwards the message to the management server
 3. The management server receives the device status
 
-QoS1 is used for message delivery
+QoS 1 is used for message delivery.
 
-The connected device shall not retain historical status messages
+The connected device shall not retain historical status messages.
 
 **Sequence Diagram**
-```mermeid
 
+```mermaid
 sequenceDiagram
     participant D as Connected Device
     participant B as MQTT Broker
@@ -234,7 +248,7 @@ sequenceDiagram
     Note over B,S: MQTT Connection Established
 
     loop Every Monitoring Interval
-        Note over D: Collect latest status
+        Note over D: Read latest status
 
         D->>B: PUBLISH Device Status (QoS 1)
         B-->>D: PUBACK
@@ -245,9 +259,49 @@ sequenceDiagram
 ```
 
 
-
 #### 4.6.2 On-demand Monitoring
 
+**Overview**
+
+On-demand monitoring is triggered by the management server.
+
+The communication flow is defined as follows:
+
+1. The management server publishes the device status request to `device/{device_id}/status/request`
+2. The MQTT broker forwards the message to the connected device
+3. The connected device receives the request message and publishes the latest device status to `device/{device_id}/status`
+4. The MQTT broker forwards the message to the management server
+5. The management server receives the device status
+
+QoS 1 is used for both device status request and device status messages.
+
+The management server does not distinguish a received device status message.
+
+
+**Sequence Diagram**
+
+```mermaid
+sequenceDiagram
+    participant D as Connected Device
+    participant B as MQTT Broker
+    participant S as Management Server
+
+    Note over B,S: MQTT Connection Established
+    Note over D,B: MQTT Connection Established
+
+    S->>B: PUBLISH Device Status Request (QoS 1)
+    B-->>S: PUBACK
+
+    B->>D: PUBLISH Device Status Request (QoS 1)
+    D-->>B: PUBACK
+
+    Note over D: Read latest status
+    D->>B: PUBLISH Device Status (QoS 1)
+    B-->>D: PUBACK
+
+    B->>S: PUBLISH Device Status (QoS 1)
+    S-->>B: PUBACK
+```
 
 
 
@@ -255,15 +309,61 @@ sequenceDiagram
 ## 5. TCP Communication Design
 
 ### 5.1 Overview
-TCP is used for exchanging remote control and OTA management messages, including ....
+TCP is used for exchanging remote control and OTA management messages, including remote control request/response, software update request/response, and software update result, between the connected device and the management server. 
 
-5.2 Connection Design
-   5.3 Message Types
-   5.4 Message Framing
-   5.5 Request / Response Mapping
-   5.6 Connection Failure and Reconnection
-   5.7 Remote Control Communication Flow
-   5.8 OTA Control Communication Flow
+### 5.2 Connection Design
+
+This section describes how the TCP connection between the connected device and the management server is established, maintained, and termination.
+
+#### 5.2.1 Connected Architechture
+
+The connected device act as a TCP client, while the management server acts as a TCP server.
+
+The connected device initiate the TCP connection to the management server. 
+
+A persistent TCP connection is used to support remote control and OTA management. 
+
+#### 5.2.2 Connection Establishment
+
+The management server starts listening for TCP connections when the server application starts. 
+
+The connected device initiates a TCP connection to the configured management server address and port when the device application starts. 
+
+Once the TCP connected is established, same connection is used for remote control and OTA management.
+
+#### 5.2.3 Connection maintenance
+
+A persistent TCP connection is maintained during normal system operation to support remote control and OTA management.
+
+#### 5.2.4 Connection Termination
+
+The TCP connection is regularly terminated when either the connected device or the management server application shuts down.
+
+
+
+
+### 5.3 Message Types
+
+The TCP communication protocol defines five application message types as follows:
+
+| Message Type | Sender | Receiver | Description |
+| --- | --- | --- | --- |
+| REMOTE_CONTROL_REQUEST | Server | Device | requests remote control |
+| REMOTE_CONTROL_RESPONCE | Device | Server | responces remote control | 
+| OTA_UPDATE_CHECK | Device | Server | requests OTA update availability |
+| OTA_UPDATE_INFO | Server | Device | provides OTA update availability |
+| OTA_UPDATE_RESULT | Device | Server | reports OTA update results | 
+
+
+
+### 5.4 Message Framing
+
+
+
+### 5.5 Request / Response Mapping
+### 5.6 Connection Failure and Reconnection
+### 5.7 Remote Control Communication Flow
+### 5.8 OTA Control Communication Flow
 
 ## 6. HTTP Communication Design
    6.1 Overview
